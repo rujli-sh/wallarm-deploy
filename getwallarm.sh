@@ -147,23 +147,35 @@ do_install() {
 
 			log_message INFO "Installing official Nginx packages..."
 			yum update -y
-			yum install nginx -y
+			if ! rpm --quiet -q nginx; then
+				yum install nginx -y
+			fi
 
 			log_message INFO "Configuring Wallarm repository..."
 			case $osrelease in
 				6)
-					yum install --enablerepo=extras -y epel-release centos-release-SCL
-					rpm -i https://repo.wallarm.com/centos/wallarm-node/6/2.14/x86_64/Packages/wallarm-node-repo-1-4.el6.noarch.rpm
+					if ! rpm --quiet -q epel-release; then
+						yum install --enablerepo=extras -y epel-release centos-release-SCL
+					fi
+					if ! rpm --quiet -q wallarm-node-repo; then
+						rpm -i https://repo.wallarm.com/centos/wallarm-node/6/2.14/x86_64/Packages/wallarm-node-repo-1-4.el6.noarch.rpm
+					fi
 					;;
 				7)
-					yum install -y epel-release
-					rpm -i https://repo.wallarm.com/centos/wallarm-node/7/2.14/x86_64/Packages/wallarm-node-repo-1-4.el7.noarch.rpm
+					if ! rpm --quiet -q epel-release; then
+						yum install -y epel-release
+					fi
+					if ! rpm --quiet -q wallarm-node-repo; then
+						rpm -i https://repo.wallarm.com/centos/wallarm-node/7/2.14/x86_64/Packages/wallarm-node-repo-1-4.el7.noarch.rpm
+					fi
 					;;
 			esac
 
 			log_message INFO "Installing Wallarm packages..."
 			yum update -y
-			yum install -y wallarm-node nginx-module-wallarm
+			if ! rpm --quiet -q wallarm-node; then
+				yum install -y wallarm-node nginx-module-wallarm
+			fi
 
 			;;
 	esac
