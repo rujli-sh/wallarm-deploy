@@ -133,8 +133,6 @@ do_install() {
 				cp /usr/share/doc/nginx-module-wallarm/examples/*.conf $CONF_DIR
 			fi
 
-			sed -i -e 's/\#\swallarm_mode\soff\;/wallarm_mode monitoring\;/g' \
-				/etc/nginx/conf.d/wallarm.conf
 			;;
 		centos)
 			#add nginx repo
@@ -253,6 +251,10 @@ EOF
 		log_message ERROR "It looks like Nginx doesn't like the new configuration - aborting."
 		exit 1
 	fi
+
+        log_message INFO "Starting the Nginx service (just in case if it is not running)..."
+        service nginx start
+
 	log_message INFO "Reloading Nginx configuration..."
 	service nginx reload
 
