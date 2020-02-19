@@ -1,6 +1,6 @@
 #!/bin/sh
 # 
-# The script can be used to quickly deploy and configure a Wallarm WAF node on a supported Linux OS server.
+# The script can be used to quickly deploy and configure a Wallarm WAF node on a supported Linux OS.
 #
 
 # The name of the script - used for tagging of syslog messages
@@ -265,8 +265,11 @@ EOF
 }
 
 test_proxy() {
+	log_message INFO "Sending a request to Wallarm WAF status page http://127.0.0.8/wallarm-status..."
+	curl http://127.0.0.8/wallarm-status
+
 	if [ -z "$DOMAIN_NAME" ]; then
-		log_message INFO "The domain name is not specified - skipping the proxy testing step..."
+		log_message INFO "The domain name is not specified - skipping the domain testing step..."
 		return
 	fi
 	log_message INFO "Sending a regular HTTP request to the localhost for domain $DOMAIN_NAME..."
@@ -342,4 +345,6 @@ add_node
 configure_proxy
 
 test_proxy
+
+log_message INFO "We've completed the Wallarm WAF node deployment process."
 
