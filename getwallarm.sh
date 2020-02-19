@@ -225,6 +225,10 @@ configure_proxy() {
 	log_message INFO "Creating Nginx configuration file $CONF_FILE with settings for domain $DOMAIN_NAME and origin address $ORIGIN_NAME..."
 
 cat > $CONF_FILE << EOF
+
+# Set global Wallarm WAF mode to "block"
+wallarm_mode block;
+
 server {
   listen       80;
   # the domains for which traffic is processed
