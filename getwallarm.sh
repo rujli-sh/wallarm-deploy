@@ -3,6 +3,9 @@
 # The script can be used to quickly deploy and configure a Wallarm WAF node on a supported Linux OS.
 #
 
+# Exit immediately on an error
+set -e
+
 # The name of the script - used for tagging of syslog messages
 TAG="getwallarm.sh"
 
