@@ -20,7 +20,25 @@ log_message() {
 usage() {
 	echo "Usage: 
 	chmod u+x `basename $0`
-	sudo ./`basename $0`"
+	sudo ./`basename $0`
+
+	Supported parameters (all the parameters are optional):
+		-h
+			This help message.
+		-S <SITE_NAME>
+			The name of used Wallarm site: EU or US1 (by default the script uses EU site).
+		-n <DEPLOY_USER>
+			The username to be used for the new node registration process.
+		-p <DEPLOY_PASSWORD>
+			The password to be used for the new node registration process.
+		-n <NODE_MAME>
+			The name of the node as it will visible in the Wallarm console UI (by 
+			default the script will use the host name).
+		-d <DOMAIN_NAME>
+			The WAF reverse proxy will be configured to handle traffic for the domain.
+		-o <ORIGIN_SERVER>
+			The WAF reverse proxy will be configured to send upstream requests to the
+			specified IP address or domain name."
 }
 
 check_if_root() {
@@ -37,6 +55,7 @@ get_distro() {
 	osrelease=""
 	pretty_name=""
 	basearch=""
+
 	# Every system that we support has /etc/os-release or not?
 	if [ -r /etc/os-release ]; then
 		lsb_dist="$(. /etc/os-release && echo "$ID")"
@@ -106,7 +125,6 @@ do_install() {
 			apt-get update
 			apt-get install -y nginx
 
-
 			log_message INFO "Adding Wallarm repository key..."
 			apt-key adv --keyserver keys.gnupg.net --recv-keys 72B865FD
 			log_message INFO "Configuring Wallarm repository..."
@@ -118,67 +136,55 @@ do_install() {
 			log_message INFO "Installing Wallarm packages..."
 			apt-get install -y --no-install-recommends wallarm-node nginx-module-wallarm
 
-			NGINX_CONF=/etc/nginx/nginx.conf
-			log_message INFO "Checking whether $NGINX_CONF is already configured to load the Wallarm module..."
-
-			if grep -q ngx_http_wallarm_module.so $NGINX_CONF; then
-				log_message INFO "It looks like the file is already configured to load the module."
-			else
-				log_message INFO "Updating $NGINX_CONF to load Wallarm Nginx module..."
-				sed -i '/worker_processes.*/a load_module modules/ngx_http_wallarm_module.so;' /etc/nginx/nginx.conf
-			fi
-
-			CONF_DIR=/etc/nginx/conf.d/
-			if [ -f $CONF_DIR/wallarm.conf -o -f $CONF_DIR/wallarm-status.conf ]; then
-				log_message INFO "It looks like default Wallarm configuration files alredy present in $CONF_DIR directory."
-			else
-				log_message INFO "Copying default Wallarm configuration files to $CONF_DIR directory..."
-				cp /usr/share/doc/nginx-module-wallarm/examples/*.conf $CONF_DIR
-			fi
-
 			;;
 		centos)
-			#add nginx repo
+			log_message INFO "Configuring official Nginx repository..."
 			echo "[nginx]" > /etc/yum.repos.d/nginx.repo
 			echo "name=nginx repo" >> /etc/yum.repos.d/nginx.repo
 			echo "baseurl=https://nginx.org/packages/centos/$osrelease/$basearch/" >> /etc/yum.repos.d/nginx.repo
 			echo "gpgcheck=0" >> /etc/yum.repos.d/nginx.repo
 			echo "enabled=1" >> /etc/yum.repos.d/nginx.repo
 
-			#update repo
+			log_message INFO "Installing official Nginx packages..."
 			yum update -y
 			yum install nginx -y
 
-			#wallarm install
-
-			#enabe epel
+			log_message INFO "Configuring Wallarm repository..."
 			case $osrelease in
 				6)
 					yum install --enablerepo=extras -y epel-release centos-release-SCL
-					rpm -i https://repo.wallarm.com/centos/wallarm-node/6/x86_64/Packages/wallarm-node-repo-1-2.el6.noarch.rpm
+					rpm -i https://repo.wallarm.com/centos/wallarm-node/6/2.14/x86_64/Packages/wallarm-node-repo-1-4.el6.noarch.rpm
 					;;
 				7)
 					yum install -y epel-release
-					rpm -i https://repo.wallarm.com/centos/wallarm-node/7/x86_64/Packages/wallarm-node-repo-1-2.el7.centos.noarch.rpm
+					rpm -i https://repo.wallarm.com/centos/wallarm-node/7/2.14/x86_64/Packages/wallarm-node-repo-1-4.el7.noarch.rpm
 					;;
 			esac
 
-			#add repo
-			#rpm -i https://repo.wallarm.com/centos/wallarm-node/$osrelease/x86_64/Packages/wallarm-node-repo-1-2.el$osrelease.noarch.rpm
-			#rpm -i https://repo.wallarm.com/centos/wallarm-node/$osrelease/x86_64/Packages/wallarm-node-repo-1-2.el$osrelease.noarch.rpm
-
-
-			#install wallarm packages
+			log_message INFO "Installing Wallarm packages..."
 			yum update -y
 			yum install -y wallarm-node nginx-module-wallarm
 
-			#configure nginx
-			sed -i '/worker_processes.*/a load_module modules/ngx_http_wallarm_module.so;' /etc/nginx/nginx.conf
-			cp /usr/share/doc/nginx-module-wallarm/examples/*.conf /etc/nginx/conf.d/
-			sed -i -e 's/\#\swallarm_mode\soff\;/wallarm_mode monitoring\;/g' \
-				/etc/nginx/conf.d/wallarm.conf
 			;;
 	esac
+
+	NGINX_CONF=/etc/nginx/nginx.conf
+	log_message INFO "Checking whether $NGINX_CONF is already configured to load the Wallarm module..."
+
+	if grep -q ngx_http_wallarm_module.so $NGINX_CONF; then
+		log_message INFO "It looks like the file is already configured to load the module."
+	else
+		log_message INFO "Updating $NGINX_CONF to load Wallarm Nginx module..."
+		sed -i '/worker_processes.*/a load_module modules/ngx_http_wallarm_module.so;' /etc/nginx/nginx.conf
+	fi
+
+	CONF_DIR=/etc/nginx/conf.d/
+	if [ -f $CONF_DIR/wallarm.conf -o -f $CONF_DIR/wallarm-status.conf ]; then
+		log_message INFO "It looks like default Wallarm configuration files alredy present in $CONF_DIR directory."
+	else
+		log_message INFO "Copying default Wallarm configuration files to $CONF_DIR directory..."
+		cp /usr/share/doc/nginx-module-wallarm/examples/*.conf $CONF_DIR
+	fi
 }
 
 # 
@@ -208,6 +214,9 @@ add_node() {
 	$ADDNODE_SCRIPT --force -H $API_HOST --username $API_USERNAME --password $API_PASSWORD --name $MY_NODE_NAME
 }
 
+#
+# Configure the Nginx to handle the specified domain in reverse proxy mode
+#
 configure_proxy() {
 	log_message INFO "Checking whether we need to configure the Nginx proxy..."
 	CONF_FILE=/etc/nginx/conf.d/wallarm-proxy.conf	
@@ -268,6 +277,9 @@ EOF
 
 }
 
+#
+# Send a few test requests
+#
 test_proxy() {
 	log_message INFO "Sending a request to Wallarm WAF status page http://127.0.0.8/wallarm-status..."
 	curl http://127.0.0.8/wallarm-status
@@ -283,6 +295,7 @@ test_proxy() {
 	curl -v -H "Host: $DOMAIN_NAME" "http://localhost/?id='or+1=1--a-<script>prompt(1)</script>" > /dev/null
 }
 
+# By default use the Wallarm EU site
 API_SITE=eu
 
 MY_NODE_NAME=`hostname`
@@ -351,4 +364,3 @@ configure_proxy
 test_proxy
 
 log_message INFO "We've completed the Wallarm WAF node deployment process."
-
