@@ -223,6 +223,7 @@ configure_proxy() {
 
 	if [ -z "$ORIGIN_NAME" ]; then
 		log_message INFO "Origin address is not specified (script option -o) - using domain name $DOMAIN_NAME"
+		ORIGIN_NAME=$DOMAIN_NAME
 	fi
 
 	log_message INFO "Creating Nginx configuration file $CONF_FILE with settings for domain $DOMAIN_NAME and origin address $ORIGIN_NAME..."
