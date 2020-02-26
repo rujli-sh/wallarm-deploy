@@ -27,7 +27,7 @@ usage() {
 			This help message.
 		-S <SITE_NAME>
 			The name of used Wallarm site: EU or US1 (by default the script uses EU site).
-		-n <DEPLOY_USER>
+		-u <DEPLOY_USER>
 			The username to be used for the new node registration process.
 		-p <DEPLOY_PASSWORD>
 			The password to be used for the new node registration process.
