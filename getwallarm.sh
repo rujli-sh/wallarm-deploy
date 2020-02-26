@@ -49,6 +49,30 @@ check_if_root() {
 	fi
 }
 
+disable_selinux() {
+        log_message INFO "Checking whether SELinux is installed (and disabling it if it installed)..."
+        SELINUXENABLED=`which selinuxenabled`
+        SETENFORCE=`which setenforce`
+        if [ -z "$SELINUXENABLED" ]; then
+                log_message INFO "Cannot find 'selinuxenabled' binary - it looks like SELinux is not installed on the server."
+                return
+        fi
+
+        if [ -z "$SETENFORCE" ]; then
+                log_message WARNING "Cannot find 'setenforce' tool - will not try to disabled SELinux..."
+                return
+        fi
+
+        log_message INFO "Running 'setenforce' command to temporary disable SELinux..."
+        setenforce 0
+
+        SELINUX_CONF=/etc/selinux/config
+        if [ -f $SELINUX_CONF ]; then
+                log_message INFO "Updating file $SELINUX_CONF to permanently disable SELinux..."
+                sed -i 's/enforcing/disabled/g' $SELINUX_CONF
+        fi
+}
+
 get_distro() {
 	log_message INFO "Discovering the used operating system..." 
 	lsb_dist=""
@@ -97,8 +121,6 @@ get_distro() {
 
 #install 
 do_install() {
-	#check the user is root
-	check_if_root
 
 	#do some platform detection
 	get_distro
@@ -197,6 +219,9 @@ do_install() {
 		log_message INFO "Copying default Wallarm configuration files to $CONF_DIR directory..."
 		cp /usr/share/doc/nginx-module-wallarm/examples/*.conf $CONF_DIR
 	fi
+
+	log_message INFO "Enabling Nginx to launch automatically during the server startup sequence..."
+	systemctl enable nginx
 }
 
 # 
@@ -366,6 +391,10 @@ else
 	usage
 	exit 1
 fi
+
+check_if_root
+
+disable_selinux
 
 do_install
 
