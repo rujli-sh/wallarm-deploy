@@ -4,7 +4,7 @@
 #
 
 # Exit immediately on an error
-set -e
+# set -e
 
 # The name of the script - used for tagging of syslog messages
 TAG="getwallarm.sh"
