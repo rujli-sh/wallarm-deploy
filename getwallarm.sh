@@ -148,7 +148,11 @@ do_install() {
 			apt-get install -y nginx
 
 			log_message INFO "Adding Wallarm repository key..."
-			apt-key adv --keyserver keys.gnupg.net --recv-keys 72B865FD
+                        for i in 1 2 3 4 5; do
+                                apt-key adv --keyserver keys.gnupg.net --recv-keys 72B865FD && break || sleep 2;
+                                log_message WARNING "Retrying - attempt $i of 5..."
+                        done
+
 			log_message INFO "Configuring Wallarm repository..."
 			sh -c "echo 'deb http://repo.wallarm.com/$lsb_dist/wallarm-node\
 				$pretty_name/'\
