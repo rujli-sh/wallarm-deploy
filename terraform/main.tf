@@ -3,11 +3,17 @@ provider "aws" {
   region = var.aws_region
 }
 
+#
+# Define a Key Pair to be used for both WP and WAF instances.
+#
 resource "aws_key_pair" "mykey" {
   key_name   = "tf-wallarm-demo-key"
   public_key = var.key_pair
 }
 
+#
+# Configure VPC, subnets, routing table and Internet Gateway resources.
+#
 resource "aws_vpc" "my_vpc" {
   cidr_block           = var.vpc_cidr_block
   enable_dns_hostnames = true
@@ -64,6 +70,9 @@ resource "aws_route_table_association" "my_vpc_b_public" {
   route_table_id = "${aws_route_table.my_vpc_public.id}"
 }
 
+#
+# Configure SG for Wordpress instances.
+#
 resource "aws_security_group" "wp_sg" {
   name   = "tf-wallarm-demo-wp"
   vpc_id = "${aws_vpc.my_vpc.id}"
@@ -97,6 +106,9 @@ resource "aws_security_group" "wp_sg" {
   }
 }
 
+#
+# Configure SG for Wallarm WAF nodes.
+#
 resource "aws_security_group" "wallarm_asg_sg" {
   name   = "tf-wallarm-demo-waf-asg"
   vpc_id = "${aws_vpc.my_vpc.id}"
@@ -130,6 +142,9 @@ resource "aws_security_group" "wallarm_asg_sg" {
   }
 }
 
+#
+# Configure SG for Wallarm LB instance.
+#
 resource "aws_security_group" "wallarm_elb_sg" {
   name   = "tf-wallarm-demo-waf-nlb"
   vpc_id = "${aws_vpc.my_vpc.id}"
@@ -156,6 +171,9 @@ resource "aws_security_group" "wallarm_elb_sg" {
   }
 }
 
+#
+# Configure ELB instance for Wordpress instances.
+#
 resource "aws_elb" "wp_elb" {
   name = "tf-wallarm-demo-wp"
   security_groups = [
@@ -182,6 +200,9 @@ resource "aws_elb" "wp_elb" {
   }
 }
 
+#
+# Configure NLB instance for WAF nodes.
+#
 resource "aws_lb" "wallarm_asg_nlb" {
   name               = "tf-wallarm-demo-asg-nlb"
   internal           = false
@@ -194,6 +215,9 @@ resource "aws_lb" "wallarm_asg_nlb" {
   enable_deletion_protection = false
 }
 
+#
+# Configure HTTP and HTTPS target groups for the NLB load balancer.
+#
 resource "aws_lb_target_group" "wallarm_asg_target_http" {
   name     = "tf-wallarm-demo-asg-target-http"
   port     = 80
@@ -216,6 +240,9 @@ resource "aws_lb_target_group" "wallarm_asg_target_https" {
   }
 }
 
+#
+# Configure HTTP and HTTPS listeners for the NLB load balancer.
+#
 resource "aws_lb_listener" "wallarm_asg_nlb_http" {
   load_balancer_arn = "${aws_lb.wallarm_asg_nlb.arn}"
   port              = "80"
@@ -238,7 +265,9 @@ resource "aws_lb_listener" "wallarm_asg_nlb_https" {
   }
 }
 
-
+#
+# Launch Configuration for Wordpress instances.
+#
 resource "aws_launch_configuration" "wp_launch_config" {
 
   image_id        = var.wordpress_ami_id
@@ -247,6 +276,9 @@ resource "aws_launch_configuration" "wp_launch_config" {
   security_groups = ["${aws_security_group.wp_sg.id}"]
 }
 
+#
+# ASG for Wordpress instances.
+#
 resource "aws_autoscaling_group" "wp_asg" {
   name                 = "tf-wp_asg-${aws_launch_configuration.wp_launch_config.name}"
   launch_configuration = "${aws_launch_configuration.wp_launch_config.name}"
@@ -265,6 +297,9 @@ resource "aws_autoscaling_group" "wp_asg" {
   }
 }
 
+#
+# Launch Configuration for Wallarm WAF nodes.
+#
 resource "aws_launch_configuration" "wallarm_launch_config" {
   lifecycle { create_before_destroy = true }
 
@@ -413,6 +448,9 @@ runcmd:
 EOF
 }
 
+#
+# ASG configuration for Wallarm WAF nodes.
+#
 resource "aws_autoscaling_group" "wallarm_waf_asg" {
   lifecycle { create_before_destroy = true }
 
@@ -442,6 +480,9 @@ resource "aws_autoscaling_group" "wallarm_waf_asg" {
   }
 }
 
+#
+# Autoscaling UP and DOWN plicies and CloudWatch alerts for WAF nodes ASG.
+#
 resource "aws_autoscaling_policy" "wallarm_policy_up" {
   name                   = "tf-wallarm_policy_up"
   scaling_adjustment     = 1
@@ -490,6 +531,9 @@ resource "aws_cloudwatch_metric_alarm" "wallarm_cpu_alarm_down" {
   alarm_actions     = ["${aws_autoscaling_policy.wallarm_policy_down.arn}"]
 }
 
+#
+# Print out the DNS name of created NLB instance.
+#
 output "waf_nlb_dns_name" {
   value = [aws_lb.wallarm_asg_nlb.dns_name]
 }
