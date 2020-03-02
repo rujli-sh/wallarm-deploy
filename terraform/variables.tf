@@ -50,11 +50,11 @@ variable "waf_node_instance_type" {
 }
 
 variable "deploy_username" {
-  type    = string
+  type = string
 }
 
 variable "deploy_password" {
-  type    = string
+  type = string
 }
 
 variable "wallarm_api_domain" {

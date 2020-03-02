@@ -17,21 +17,30 @@ resource "aws_vpc" "my_vpc" {
 }
 
 resource "aws_subnet" "public_a" {
-  vpc_id            = "${aws_vpc.my_vpc.id}"
-  cidr_block        = var.subnet_a_cidr_block
-  availability_zone = var.az_a
+  vpc_id                  = "${aws_vpc.my_vpc.id}"
+  cidr_block              = var.subnet_a_cidr_block
+  availability_zone       = var.az_a
   map_public_ip_on_launch = true
+  tags = {
+    Name = "tf-wallarm-demo-subnet-a"
+  }
 }
 
 resource "aws_subnet" "public_b" {
-  vpc_id            = "${aws_vpc.my_vpc.id}"
-  cidr_block        = var.subnet_b_cidr_block
-  availability_zone = var.az_b
+  vpc_id                  = "${aws_vpc.my_vpc.id}"
+  cidr_block              = var.subnet_b_cidr_block
+  availability_zone       = var.az_b
   map_public_ip_on_launch = true
+  tags = {
+    Name = "tf-wallarm-demo-subnet-b"
+  }
 }
 
 resource "aws_internet_gateway" "my_vpc_igw" {
   vpc_id = "${aws_vpc.my_vpc.id}"
+  tags = {
+    Name = "tf-wallarm-demo"
+  }
 }
 
 resource "aws_route_table" "my_vpc_public" {
@@ -39,6 +48,9 @@ resource "aws_route_table" "my_vpc_public" {
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = "${aws_internet_gateway.my_vpc_igw.id}"
+  }
+  tags = {
+    Name = "tf-wallarm-demo"
   }
 }
 
@@ -53,7 +65,7 @@ resource "aws_route_table_association" "my_vpc_b_public" {
 }
 
 resource "aws_security_group" "wp_sg" {
-  name   = "tf-wp_sg"
+  name   = "tf-wallarm-demo-wp"
   vpc_id = "${aws_vpc.my_vpc.id}"
 
   ingress {
@@ -86,7 +98,7 @@ resource "aws_security_group" "wp_sg" {
 }
 
 resource "aws_security_group" "wallarm_asg_sg" {
-  name   = "tf-wallarm_asg_sg"
+  name   = "tf-wallarm-demo-waf-asg"
   vpc_id = "${aws_vpc.my_vpc.id}"
 
   ingress {
@@ -119,7 +131,7 @@ resource "aws_security_group" "wallarm_asg_sg" {
 }
 
 resource "aws_security_group" "wallarm_elb_sg" {
-  name   = "tf-wallarm_elb_sg"
+  name   = "tf-wallarm-demo-waf-nlb"
   vpc_id = "${aws_vpc.my_vpc.id}"
 
   ingress {
@@ -145,7 +157,7 @@ resource "aws_security_group" "wallarm_elb_sg" {
 }
 
 resource "aws_elb" "wp_elb" {
-  name = "tf-wp-elb"
+  name = "tf-wallarm-demo-wp"
   security_groups = [
     "${aws_security_group.wp_sg.id}"
   ]
@@ -171,7 +183,7 @@ resource "aws_elb" "wp_elb" {
 }
 
 resource "aws_lb" "wallarm_asg_nlb" {
-  name               = "tf-wallarm-asg-nlb"
+  name               = "tf-wallarm-demo-asg-nlb"
   internal           = false
   load_balancer_type = "network"
   subnets = [
@@ -183,24 +195,24 @@ resource "aws_lb" "wallarm_asg_nlb" {
 }
 
 resource "aws_lb_target_group" "wallarm_asg_target_http" {
-  name     = "tf-wallarm-asg-target-http"
+  name     = "tf-wallarm-demo-asg-target-http"
   port     = 80
   protocol = "TCP"
   vpc_id   = "${aws_vpc.my_vpc.id}"
- stickiness {
+  stickiness {
     enabled = false
-    type = "lb_cookie"
+    type    = "lb_cookie"
   }
 }
 
 resource "aws_lb_target_group" "wallarm_asg_target_https" {
-  name     = "tf-wallarm-asg-target-https"
+  name     = "tf-wallarm-demo-asg-target-https"
   port     = 443
   protocol = "TCP"
   vpc_id   = "${aws_vpc.my_vpc.id}"
- stickiness {
+  stickiness {
     enabled = false
-    type = "lb_cookie"
+    type    = "lb_cookie"
   }
 }
 
@@ -242,10 +254,15 @@ resource "aws_autoscaling_group" "wp_asg" {
   max_size             = "1"
   min_elb_capacity     = "1"
   availability_zones   = [var.az_a, var.az_b]
-  vpc_zone_identifier  = ["${aws_subnet.public_a.id}","${aws_subnet.public_b.id}"]
-  load_balancers= [
+  vpc_zone_identifier  = ["${aws_subnet.public_a.id}", "${aws_subnet.public_b.id}"]
+  load_balancers = [
     "${aws_elb.wp_elb.id}"
   ]
+  tag {
+    key                 = "Name"
+    value               = "tf-wallarm-demo-wp"
+    propagate_at_launch = true
+  }
 }
 
 resource "aws_launch_configuration" "wallarm_launch_config" {
@@ -399,14 +416,14 @@ EOF
 resource "aws_autoscaling_group" "wallarm_waf_asg" {
   lifecycle { create_before_destroy = true }
 
-  name                 = "tf-wallarm_waf_asg-${aws_launch_configuration.wallarm_launch_config.name}"
+  name                 = "tf-wallarm-demo-waf-asg-${aws_launch_configuration.wallarm_launch_config.name}"
   launch_configuration = "${aws_launch_configuration.wallarm_launch_config.name}"
   min_size             = "2"
   max_size             = "5"
   min_elb_capacity     = "2"
   availability_zones   = [var.az_a]
   vpc_zone_identifier  = ["${aws_subnet.public_a.id}"]
-  target_group_arns = [ "${aws_lb_target_group.wallarm_asg_target_http.arn}", "${aws_lb_target_group.wallarm_asg_target_https.arn}"
+  target_group_arns = ["${aws_lb_target_group.wallarm_asg_target_http.arn}", "${aws_lb_target_group.wallarm_asg_target_https.arn}"
   ]
 
   enabled_metrics = [
@@ -417,6 +434,12 @@ resource "aws_autoscaling_group" "wallarm_waf_asg" {
     "GroupTotalInstances"
   ]
   metrics_granularity = "1Minute"
+
+  tag {
+    key                 = "Name"
+    value               = "tf-wallarm-demo-waf-node"
+    propagate_at_launch = true
+  }
 }
 
 resource "aws_autoscaling_policy" "wallarm_policy_up" {
