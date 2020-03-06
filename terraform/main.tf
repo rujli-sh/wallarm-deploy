@@ -311,6 +311,10 @@ resource "aws_launch_configuration" "wallarm_launch_config" {
 #cloud-config
 
 write_files:
+ - path: /etc/nginx/scanner-ips.conf
+   owner: root:root
+   permissions: '0644'
+   content: "${file("scanner-ips.conf")}"
  - path: /etc/nginx/conf.d/wallarm-acl.conf
    owner: root:root
    permissions: '0644'
@@ -335,11 +339,15 @@ write_files:
    permissions: '0644'
    content: |
      limit_req_zone $binary_remote_addr zone=mylimit:10m rate=5r/s;
+     map $remote_addr $wallarm_mode_real {
+     default block;
+       include /etc/nginx/scanner-ips.conf;
+     }
      server {
        listen 80 default_server;
        server_name _;
        wallarm_acl default;
-       wallarm_mode block;
+       wallarm_mode $wallarm_mode_real;
        # wallarm_instance 1;
        location /healthcheck {
          return 200;
