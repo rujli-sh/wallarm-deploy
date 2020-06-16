@@ -305,6 +305,12 @@ configure_proxy() {
 		ORIGIN_NAME=$DOMAIN_NAME
 	fi
 
+	CONFIG_INCREASE_HASH_SIZE=/etc/nginx/conf.d/server_names_hash_bucket_size.conf
+	log_message INFO "Creating Nginx config file $CONFIG_INCREASE_HASH_SIZE..."
+	cat > $CONFIG_INCREASE_HASH_SIZE  << EOF
+server_names_hash_bucket_size  128;
+EOF
+
 	log_message INFO "Creating Nginx configuration file $CONF_FILE with settings for domain $DOMAIN_NAME and origin address $ORIGIN_NAME..."
 
 cat > $CONF_FILE << EOF
