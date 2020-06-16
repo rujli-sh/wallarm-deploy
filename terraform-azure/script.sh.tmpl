@@ -1,0 +1,6 @@
+#!/bin/bash
+
+wget -O getwallarm.sh https://raw.githubusercontent.com/vgartvich-wallarm/wallarm-deploy/master/getwallarm.sh
+
+sudo sh getwallarm.sh  -u  ${deploy_user} -p ${deploy_password} -S ${wallarm_cloud} -d ${protected_domain} -o ${protected_origin}
+
